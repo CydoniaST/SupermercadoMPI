@@ -65,7 +65,7 @@ Cola* iniciarCola(){//Este metodo inicializa una cola vacia
     return nuevaCola;
 }
 
-void nuevoCliente(Cola* cola, Cliente cliente){//Este emtodo añade un nuevo cliente a la cola de cliente segun llegan
+void nuevoCliente(Cola* cola, Cliente cliente){//Este emetodo añade un nuevo cliente a la cola de cliente segun llegan
     Nodo* nuevoNodo = (Nodo*)malloc(sizeof(Nodo));
     nuevoNodo -> cliente = cliente;
     nuevoNodo-> siguiente = NULL;
@@ -79,7 +79,7 @@ void nuevoCliente(Cola* cola, Cliente cliente){//Este emtodo añade un nuevo cli
     }
 }
 
-void saleCliente(Cola* cola){
+void saleCliente(Cola* cola){//Este metodo elimina un cliente de la cola
     if(cola->inicioCola == NULL){
         printf("La cola esta vacia, no puede salir ningun cliente");
     }
@@ -98,13 +98,13 @@ void comprobarHuecoCaja (){ //Metodo que comprueba si hau una caja libre para qu
 
 }
 
-void clienteLlega(Cola* cola, int idCliente, int prioridadCliente){
+void clienteLlega(Cola* cola, int idCliente, int prioridadCliente){//LLega un cliente nuevo y lo mete en la cola
     Cliente nuevoCliente = { idCliente, prioridadCliente};
     nuevoCliente(cola, nuevoCliente);
     printf("El clientecon ID %d ha sido atendido y tiene prioridad %d\n", nuevoCliente.id, nuevoCliente.prioridad)
 }
 
-void clienteAtendido(Cola* cola){
+void clienteAtendido(Cola* cola){//Atiende un cliente en la caja y lo elimina de la cola
     Cliente clienteAtendido = saleCliente(cola);
 
     if(clienteAtendido.id != -1){
