@@ -5,76 +5,136 @@
 #include <mpi.h>
 #include <windows.h>
 #include <stdlib.h>
-#include<time.h>
+#include <time.h>
 
 
 //Variables Necesarias
 #define MAX_CLIENTES 100
-void clienteLlega() {
-    
+int indiceCola = 0;
+int numClientes;
 
-   
+//typedef struct {
+//    int* clientes = (int*)malloc(sizeof(int) * numClientes);
+//    int inicio;
+//    int final;
+//    int clientePrioritario;
+//}cola;
+
+void reordenarCola(int* clientes, int numClientes) {
+    
+    if (numClientes == 0) {
+        printf("La cola esta vacia.");
+        fflush(stdout);
+    }
+
+    for (int i = 0; i < numClientes; i++) {
+        clientes[i] = clientes[i + 1]; // Movemos cada elemento una posición hacia adelante
+    }
+    clientes[numClientes-1] = -1; //Como la fila se va vaciando sustituyo las posiciones vacias de la cola por un -1.
 }
 
-void clienteAtendido(int cliente) {
+int encontrarPrimeraPosicionVacia(int* clientes, int numClientes) {
+    for (int i = 0; i < numClientes; ++i) {
+        if (clientes[i] == -1) {
+            return i; // Se ha encontrado una posición vacía en la cola.
+        }
+    }
+    return -1; // Si no se encuentra ninguna posición vacía, se devuelve -1
+}
+
+int clienteAtendido(int cliente) {
     printf("El cliente %d va a ser atendido.\n", cliente);
     fflush(stdout);
 
-    srand(time(NULL));
-    int num = 1 + rand() % (6 - 1);
+    //srand(time(NULL));
+    int num =rand() % (10000 - 1);
 
     Sleep(num);
 
-    printf("El cliente %d ha sido atendido.\n", cliente);
+    printf("El cliente %d ha sido atendido en %d.\n", cliente, num);
     fflush(stdout);
+
+    return cliente;
 }
 
 void gestionDeClientes(int pid, int np, int* clientes, int numClientes) {
-
-   
+ 
     if (pid == 0) {//Proceso Maestro (Clientes)
         int cajaDestino = 1;
-        int clientesNuevos;
+        int clientesDeCaja;
+        int indiceCaja;
         int trabajo = 1;
-        
-      
-        for (int i = 0; i < numClientes; i++) {//Bucle de envios de mensaje a los exclaves apra indicar si hay clientes o no en la cola
+        int cola = 0;
+        int* copiaClientes = NULL;
+        int i = 0;
+        int indiceDeCola = 0; //Indice que indica cual es el hueco vacio al que iran los clientes que lleguen al maestros de las cajas para entrar en la cola
 
-            if (i >= numClientes - (np - 1)) { //Si en la cola no hay clientes el trabajo pasa a ser 0 y se lo comunicamos a las cajas (np)
+    
+     //Bucle de envios de mensaje a los exclaves apra indicar si hay clientes o no en la cola
+        while(1){
+            if (sizeof(clientes) == 0) { //Si en la cola no hay clientes el trabajo pasa a ser 0 y se lo comunicamos a las cajas (np), para numClientes -> "i >= numClientes - (np - 1)"
                 trabajo = 0;
                 MPI_Send(&trabajo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);
             }
             else {//Si en la cola aun hay clientes se lo comunicamos a las cajas para que sigan trabajando
                 MPI_Send(&trabajo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);
             }
+           
+            printf("\nEnviado cliente %d a la caja correspondiente.", clientes[0]);
+            fflush(stdout);
+            MPI_Send(&clientes[0], 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);
             
-            MPI_Send(&clientes[i], 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);
+            //Reordeno la cola para que los quientes vayan avanzando
+            reordenarCola(clientes, numClientes);
+     
+            printf("La cola ahora es : \n");
+            for (int x = 0; x < numClientes; x++) {
+                printf("%d", clientes[x]);
+            }
 
-            printf("\nEnviado cliente %d a la caja correspondiente.", clientes[i]);
+            MPI_Recv(&clientesDeCaja, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            printf("\nEl cliente %d sale de la caja y vuelve a entrar en la cola.\n", clientesDeCaja);
+            fflush(stdout);
+
+            Sleep(1000);
+            printf("El cliente %d esta ahora en la cola\n", clientesDeCaja);
+            fflush(stdout);
+
+          for (int j = 0; j < numClientes; j++) {
+                if (clientes[j] == -1) {
+                    clientes[j] = clientesDeCaja;
+                }
+           }
+
+            //Recibo el indice de la caja(revisar, seguramente no se necesite o este mal)
+            MPI_Recv(&indiceCaja, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            printf("\nLa caja %d ha sido la ultima en operar...\n", indiceCaja);
             fflush(stdout);
 
             cajaDestino = (cajaDestino % np) + 1;
-
             if (cajaDestino == np) {//Cuando el destino sea igual al numero de procesos debera volver al nodo 1 y reiniciar los envios.
                 cajaDestino = 1;
-       		}	
+            }
 
-            //MPI_Recv()
+            i++;
         }
-
-    }
-    else {//Procesos Esclavos (Cajas)
+       
+    }else {//Procesos Esclavos (Cajas)
 
         int trabajoEsclavo = 1;
         while (trabajoEsclavo) {
             int clienteRecibido;
+            printf("\n El trabajo es: %d\n", trabajoEsclavo);
             MPI_Recv(&trabajoEsclavo, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(&clienteRecibido, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             printf("Soy la caja %d y me ha llegado el cliente %d\n", pid, clienteRecibido);
             fflush(stdout);
-            clienteAtendido(clienteRecibido);
 
-            MPI_Send(&clienteRecibido, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+            int cliente= clienteAtendido(clienteRecibido);
+            //ALTERNATIVO
+
+            MPI_Send(&cliente, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
+            MPI_Send(&pid, 1, MPI_INT, 0, 1, MPI_COMM_WORLD); //Envio que caja se queda libre al atender al cliente
         }
 
     }
@@ -99,8 +159,8 @@ int main(int argc, char* argv[])
     //Primero craeamos la cola de clientes
     
     int j = 0;
-    int* clientes = NULL;
-    int numClientes = atoi(argv[1]);
+    //int* clientes = NULL;
+    //int numClientes = atoi(argv[1]);
 
     //Establecemos las cajas abiertas segun el numero de clientes
     int* cajas;
@@ -142,10 +202,11 @@ int main(int argc, char* argv[])
         printf("\nIniciando trabajo del supermercado.");
         fflush(stdout);     
     }
-    gestionDeClientes(pid, np, clientes, numClientes);
+
+     gestionDeClientes(pid, np, clientes, numClientes);
+    
+
 
     MPI_Finalize();
     return 0;
 }
-
-
