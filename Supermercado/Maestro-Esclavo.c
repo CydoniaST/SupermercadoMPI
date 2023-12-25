@@ -13,34 +13,44 @@
 int indiceCola = 0;
 int numClientes;
 
-//typedef struct {
-//    int* clientes = (int*)malloc(sizeof(int) * numClientes);
-//    int inicio;
-//    int final;
-//    int clientePrioritario;
-//}cola;
+struct cola{
+    int* clientes;
+    int inicio = 0;
+    int final;
+    int capacidadOriginal;
+};
 
-void reordenarCola(int* clientes, int numClientes) {
-    
-    if (numClientes == 0) {
-        printf("La cola esta vacia.");
-        fflush(stdout);
-    }
 
-    for (int i = 0; i < numClientes; i++) {
-        clientes[i] = clientes[i + 1]; // Movemos cada elemento una posición hacia adelante
-    }
-    clientes[numClientes-1] = -1; //Como la fila se va vaciando sustituyo las posiciones vacias de la cola por un -1.
+int salirDeCola(cola* cola) {
+  
+    int result = cola->clientes[cola->inicio];                        
+    printf("Sacando al cliente %d. ", result);
+
+    cola->inicio++;
+    return result;
 }
 
-int encontrarPrimeraPosicionVacia(int* clientes, int numClientes) {
-    for (int i = 0; i < numClientes; ++i) {
-        if (clientes[i] == -1) {
-            return i; // Se ha encontrado una posición vacía en la cola.
+void insertarCola(cola* cola, int clienteNuevo) {
+    //Comprobacion de la cola
+
+   if (cola->final < (cola->capacidadOriginal - 1)) { 
+        cola->clientes[cola->final + 1] = clienteNuevo;
+        cola->final++;
+    }
+    else {
+        int llenos = (cola->final - cola->inicio) + 1;
+
+        for (int i = 0; i < llenos; i++) {
+            cola->clientes[i] = cola->clientes[i + cola->inicio];
         }
+
+        cola->inicio = 0;
+
+        cola->final = llenos;
+        cola->clientes[cola->final] = clienteNuevo;
     }
-    return -1; // Si no se encuentra ninguna posición vacía, se devuelve -1
 }
+
 
 int clienteAtendido(int cliente) {
     printf("El cliente %d va a ser atendido.\n", cliente);
@@ -57,22 +67,24 @@ int clienteAtendido(int cliente) {
     return cliente;
 }
 
-void gestionDeClientes(int pid, int np, int* clientes, int numClientes) {
+void gestionDeClientes(int pid, int np, cola* colaClientes) {
  
+    //colaClientes->final = colaClientes->capacidadOriginal-1;
+
     if (pid == 0) {//Proceso Maestro (Clientes)
         int cajaDestino = 1;
         int clientesDeCaja;
         int indiceCaja;
         int trabajo = 1;
-        int cola = 0;
         int* copiaClientes = NULL;
-        int i = 0;
-        int indiceDeCola = 0; //Indice que indica cual es el hueco vacio al que iran los clientes que lleguen al maestros de las cajas para entrar en la cola
+        int recibeTrabajo = 0;
 
-    
+        printf("\nHola\n");
+        fflush(stdout);
+
      //Bucle de envios de mensaje a los exclaves apra indicar si hay clientes o no en la cola
         while(1){
-            if (sizeof(clientes) == 0) { //Si en la cola no hay clientes el trabajo pasa a ser 0 y se lo comunicamos a las cajas (np), para numClientes -> "i >= numClientes - (np - 1)"
+            if (0){//sizeof(colaClientes->clientes) == 0) { //Si en la cola no hay clientes el trabajo pasa a ser 0 y se lo comunicamos a las cajas (np), para numClientes -> "i >= numClientes - (np - 1)"
                 trabajo = 0;
                 MPI_Send(&trabajo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);
             }
@@ -80,35 +92,32 @@ void gestionDeClientes(int pid, int np, int* clientes, int numClientes) {
                 MPI_Send(&trabajo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);
             }
            
-            printf("\nEnviado cliente %d a la caja correspondiente.", clientes[0]);
+            MPI_Request requestAsincrono;
+
+            int clienteNuevo = salirDeCola(colaClientes);
+            printf("\nEnviado cliente %d a la caja correspondiente.\n", clienteNuevo);
             fflush(stdout);
-            MPI_Send(&clientes[0], 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);
-            
-            //Reordeno la cola para que los quientes vayan avanzando
-            reordenarCola(clientes, numClientes);
-     
-            printf("La cola ahora es : \n");
-            for (int x = 0; x < numClientes; x++) {
-                printf("%d", clientes[x]);
-            }
+            MPI_Send(&clienteNuevo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);
+
+            //tiene que ser asincrono
+          
+            //MPI_Irecv(&clientesDeCaja, 1, MPI_INT, cajaDestino, MPI_ANY_TAG, MPI_COMM_WORLD, &requestAsincrono);
+            //MPI_Wait(&requestAsincrono, MPI_STATUS_IGNORE);
 
             MPI_Recv(&clientesDeCaja, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
             printf("\nEl cliente %d sale de la caja y vuelve a entrar en la cola.\n", clientesDeCaja);
             fflush(stdout);
 
-            Sleep(1000);
+            insertarCola(colaClientes, clientesDeCaja);
+
             printf("El cliente %d esta ahora en la cola\n", clientesDeCaja);
+
+            printf("La cola ahora es : \n");
             fflush(stdout);
-
-          for (int j = 0; j < numClientes; j++) {
-                if (clientes[j] == -1) {
-                    clientes[j] = clientesDeCaja;
-                }
-           }
-
-            //Recibo el indice de la caja(revisar, seguramente no se necesite o este mal)
-            MPI_Recv(&indiceCaja, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            printf("\nLa caja %d ha sido la ultima en operar...\n", indiceCaja);
+            for (int x = 0; x < colaClientes->capacidadOriginal; x++) {
+                printf("%d - ", colaClientes->clientes[x]);
+            }
             fflush(stdout);
 
             cajaDestino = (cajaDestino % np) + 1;
@@ -116,10 +125,11 @@ void gestionDeClientes(int pid, int np, int* clientes, int numClientes) {
                 cajaDestino = 1;
             }
 
-            i++;
         }
        
+       
     }else {//Procesos Esclavos (Cajas)
+        MPI_Request requestAsincrono;
 
         int trabajoEsclavo = 1;
         while (trabajoEsclavo) {
@@ -131,15 +141,18 @@ void gestionDeClientes(int pid, int np, int* clientes, int numClientes) {
             fflush(stdout);
 
             int cliente= clienteAtendido(clienteRecibido);
-            //ALTERNATIVO
+            printf("El cliente es %d\n", cliente);
+            fflush(stdout);
 
             MPI_Send(&cliente, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
-            MPI_Send(&pid, 1, MPI_INT, 0, 1, MPI_COMM_WORLD); //Envio que caja se queda libre al atender al cliente
+            //ALTERNATIVO
+            //MPI_Isend(&cliente, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &requestAsincrono);
+            //MPI_Wait(&requestAsincrono, MPI_STATUS_IGNORE);
         }
 
     }
     if (pid == 0) {
-        free(clientes);
+        free(colaClientes->clientes);
     }
          
 }
@@ -153,38 +166,43 @@ int main(int argc, char* argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &pid);
     MPI_Comm_size(MPI_COMM_WORLD, &np);
    
+   
     double inicio, fin, tiempo;
     //Metodo encargado de gestionar la entrada de los clientes en las cajas
     //Encargado de seguir esquema Maestro-Esclavo
     //Primero craeamos la cola de clientes
     
     int j = 0;
-    //int* clientes = NULL;
-    //int numClientes = atoi(argv[1]);
-
+    cola colaSupermercado;
+    int clientesCola[5];
+    
     //Establecemos las cajas abiertas segun el numero de clientes
     int* cajas;
     int numCajas = numClientes * 2, x = 0;
 
     if (pid == 0) {//El proceso MAESTRO Inicia la cola y la imprime
-        printf("El size de la cola es: %d. ", numClientes);
+ 
+        colaSupermercado.capacidadOriginal = 5;
+        colaSupermercado.clientes = (int*)malloc(colaSupermercado.capacidadOriginal * sizeof(int));
+        colaSupermercado.final = colaSupermercado.capacidadOriginal-1;
 
-        clientes = (int*)malloc(sizeof(int) * numClientes);
+        printf("El size de la cola es: %d. ", colaSupermercado.capacidadOriginal);
 
-        if (clientes == NULL) {
+        if (colaSupermercado.clientes == NULL) {
             printf("ERROR: No se pudo reservar memoria.");
             exit(1);
         }
 
-        for (int i = 0; i < numClientes; i++) {
-            clientes[i] = j + 1;
+        for (int i = 0; i < colaSupermercado.capacidadOriginal; i++) {
+            
+            colaSupermercado.clientes[i] = j + 1;
             j++;
         }
-
+        
         printf("\nLos clientes de la cola son los siguientes: ");
         printf("[");
-        for (int i = 0; i < numClientes; i++) {
-            printf(" %d", clientes[i]);
+        for (int i = 0; i < colaSupermercado.capacidadOriginal; i++) {
+            printf(" %d", colaSupermercado.clientes[i]);
         }
         printf("]");
         //Creacion de cola finalizada
@@ -200,13 +218,17 @@ int main(int argc, char* argv[])
         }
 
         printf("\nIniciando trabajo del supermercado.");
-        fflush(stdout);     
+        fflush(stdout);   
+
+
     }
 
-     gestionDeClientes(pid, np, clientes, numClientes);
+     gestionDeClientes(pid, np, &colaSupermercado);
     
 
 
     MPI_Finalize();
     return 0;
 }
+
+
