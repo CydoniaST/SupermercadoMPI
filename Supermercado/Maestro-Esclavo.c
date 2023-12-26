@@ -6,6 +6,7 @@
 #include <windows.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>  
 
 
 //Variables Necesarias
@@ -62,16 +63,16 @@ int clienteAtendido(int cliente) {
     //Sleep(num);
 
        //Simulación de trabajo
-    double start_time = MPI_Wtime();//Tiempo inicio de trabajo de caja
-    double paso_Del_Tiempo;
+    //double start_time = MPI_Wtime();//Tiempo inicio de trabajo de caja
+    //double paso_Del_Tiempo;
 
-    do {
+    //do {
 
-        paso_Del_Tiempo = MPI_Wtime() - start_time;
+    //    paso_Del_Tiempo = MPI_Wtime() - start_time;
 
-        /* printf("Atendiendo cliente.\n");
-         fflush(stdout);*/
-    } while (paso_Del_Tiempo < num);
+    //    /* printf("Atendiendo cliente.\n");
+    //     fflush(stdout);*/
+    //} while (paso_Del_Tiempo < num);
 
     printf("El cliente %d ha sido atendido en %d.\n", cliente, num);
     fflush(stdout);
@@ -97,11 +98,11 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
         fflush(stdout);
 
         //Bucle de envios de mensaje a los exclaves apra indicar si hay clientes o no en la cola
-        //for (int i = 0; i < colaClientes->capacidadOriginal; i++) {
+        for (int i = 0; i < colaClientes->capacidadOriginal; i++) {
 
             // }
-         while(1){
-            if (0) {//sizeof(colaClientes->clientes) == 0) { //Si en la cola no hay clientes el trabajo pasa a ser 0 y se lo comunicamos a las cajas (np), para numClientes -> "i >= numClientes - (np - 1)"
+         //while(1){
+            if (i >= numClientes - (np - 1)) {//sizeof(colaClientes->clientes) == 0) { //Si en la cola no hay clientes el trabajo pasa a ser 0 y se lo comunicamos a las cajas (np), para numClientes -> "i >= numClientes - (np - 1)"
                 trabajo = 0;
                 MPI_Send(&trabajo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);
             }
@@ -116,8 +117,8 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
 
             //tiene que ser asincrono
 
-            //MPI_Irecv(&clientesDeCaja, 1, MPI_INT, cajaDestino, MPI_ANY_TAG, MPI_COMM_WORLD, &requestAsincrono);
-            //MPI_Wait(&requestAsincrono, MPI_STATUS_IGNORE);
+        /*    MPI_Irecv(&clientesDeCaja, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD, &requestAsincrono);
+            MPI_Wait(&requestAsincrono, MPI_STATUS_IGNORE);*/
 
             MPI_Recv(&clientesDeCaja, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
@@ -169,7 +170,7 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
 
             MPI_Send(&cliente, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
             //ALTERNATIVO
-            //MPI_Isend(&cliente, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &requestAsincrono);
+            //MPI_Isend(&cliente, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &requestAsincrono);
             //MPI_Wait(&requestAsincrono, MPI_STATUS_IGNORE);
         }
 
