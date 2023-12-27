@@ -48,13 +48,20 @@ void insertarCola(cola* cola, int clienteNuevo) {
         cola->clientes[cola->final] = clienteNuevo;
     }
     
+        printf("\nLos clientes de la cola son los siguientes: ");
+        printf("[");
+        for (int i = 0; i < cola->capacidadOriginal; i++) {
+            printf(" %d", cola->clientes[i]);
+        }
+        printf("]");
+    
 }
 
 
-int clienteAtendido(int cliente) {
+int clienteAtendido(int cliente, int pid) {
     printf("El cliente %d va a ser atendido.\n", cliente);
-
-    unsigned int semilla = (unsigned int)rand();
+ 
+    unsigned int semilla = (unsigned int)(time(NULL)) + pid + cliente;
     
     srand(semilla);
     int num = (rand() % 6 ) +5;
@@ -108,9 +115,9 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
 		    	MPI_Irecv(&clientesDeCaja, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD, &requestAsincrono);
 		    	insertarCola(colaClientes, clientesDeCaja);
 		    	printf("El cliente %d esta ahora en la cola\n", clientesDeCaja);
-		    	imprimirCola(colaClientes);
+		    	
 		    }
-
+		    	    
 		    // Limitar cajaDestino a un máximo del 50%
 		    if (cajaDestino < cajasAbiertas) {
 		    
@@ -139,7 +146,7 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
             MPI_Recv(&clienteRecibido, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             printf("Soy la caja %d y me ha llegado el cliente %d\n", pid, clienteRecibido);
 
-            int cliente = clienteAtendido(clienteRecibido);
+            int cliente = clienteAtendido(clienteRecibido, getpid());
             
 
             //ENVIO DE CLIENTE   
@@ -148,10 +155,6 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
                       
         }
 
-    }
-    if (pid == 0) {
-  		   
-        free(colaClientes->clientes);
     }
 
 }
@@ -205,14 +208,10 @@ int main(int argc, char* argv[])
 
 
         printf("\nIniciando trabajo del supermercado.");
-        //fflush(stdout);
-
 
     }
 
     gestionDeClientes(pid, np, &colaSupermercado);
-
-
 
     MPI_Finalize();
     return 0;
