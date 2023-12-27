@@ -48,12 +48,7 @@ void insertarCola(cola* cola, int clienteNuevo) {
         cola->clientes[cola->final] = clienteNuevo;
     }
     
-        printf("\nLos clientes de la cola son los siguientes: ");
-        printf("[");
-        for (int i = 0; i < cola->capacidadOriginal; i++) {
-            printf(" %d", cola->clientes[i]);
-        }
-        printf("]");
+
     
 }
 
@@ -74,12 +69,12 @@ int clienteAtendido(int cliente, int pid) {
 }
 
 void imprimirCola(cola* cola){
-
- 	printf("La cola despues de procesar los clientes es : \n");
-		    
-	for (int x = 0; x < cola->capacidadOriginal; x++) {
-		printf("%d - ", cola->clientes[x]);
-	} 
+     printf("\nLos clientes de la cola son los siguientes: ");
+        printf("[");
+        for (int i = 0; i < cola->capacidadOriginal; i++) {
+            printf(" %d", cola->clientes[i]);
+        }
+        printf("]");
 }
 
 void gestionDeClientes(int pid, int np, cola* colaClientes) {
@@ -102,10 +97,10 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
         for(int i = 0; i < colaClientes->capacidadOriginal; i++){
  	//while(1){
           
-            	  
-			    int clienteNuevo = salirDeCola(colaClientes);
+            	 
+                    int clienteNuevo = salirDeCola(colaClientes);
 			   
-			    MPI_Send(&clienteNuevo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);
+	            MPI_Send(&clienteNuevo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);
 		    
 		    //tiene que ser asincrono
 		    
@@ -115,7 +110,7 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
 		    	MPI_Irecv(&clientesDeCaja, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD, &requestAsincrono);
 		    	insertarCola(colaClientes, clientesDeCaja);
 		    	printf("El cliente %d esta ahora en la cola\n", clientesDeCaja);
-		    	
+		    	imprimirCola(colaClientes);
 		    }
 		    	    
 		    // Limitar cajaDestino a un máximo del 50%
@@ -134,10 +129,11 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
       
     }
     else {//Procesos Esclavos (Cajas)
-	//MPI_Request requestAsincronoParaMaestro;
 	
         int trabajoEsclavo = 1;
         int clienteRecibido;
+        
+        
         while (1) {
             
 	    //RECEPCION DE CLIENTE
@@ -147,12 +143,11 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
             printf("Soy la caja %d y me ha llegado el cliente %d\n", pid, clienteRecibido);
 
             int cliente = clienteAtendido(clienteRecibido, getpid());
-            
-
+         
+	    
             //ENVIO DE CLIENTE   
             MPI_Send(&cliente, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);    
             printf("El cliente %d enviado\n", cliente);
-                      
         }
 
     }
