@@ -84,43 +84,29 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
         MPI_Request requestAsincrono;
 	MPI_Status status;
 	int flag;
-	int clientesEnCola = colaClientes->capacidadOriginal;
 	
         printf("\nNumero de cajas abiertas: %d\n", cajasAbiertas);
 
         //Bucle de envios de mensaje a los exclaves para indicar si hay clientes o no en la cola //REVISAR, ESTA MAL EL ENVIO DE TRABAJO 
-        for (int i = 0; i < colaClientes->capacidadOriginal; i++) {
-           if (i >= colaClientes->final) {//sizeof(colaClientes->clientes) == 0) { //Si en la cola no hay clientes el trabajo pasa a ser 0 y se lo comunicamos a las cajas (np), para numClientes -> "i >= numClientes - (np - 1)"
-                trabajo = 0;
-                printf("\nNo hay trabajo\n");
-            }
-            else {//Si en la cola aun hay clientes se lo comunicamos a las cajas para que sigan trabajando
-                trabajo = 1;
-            }
-            
-            MPI_Send(&trabajo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);
-            
-            //if(trabajo == 1){
+        //for(int i = 0; i < colaClientes->capacidadOriginal; i++){
+ 	while(1){
+          
             	    //MPI_Test(&requestAsincrono, &flag, &status);
-		    //if(flag && trabajo == 1){
+		    //if(flag){
 			    int clienteNuevo = salirDeCola(colaClientes);
 			    printf("\nEnviado cliente %d a la caja correspondiente.\n", clienteNuevo);
 
 			    MPI_Isend(&clienteNuevo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD, &requestAsincrono);
-			    
-			    clientesEnCola--;
 		    //}
 		    
 		    //tiene que ser asincrono
 		    
 		    MPI_Test(&requestAsincrono, &flag, &status);
-		    if(flag && trabajo == 1){
+		    if(flag){
 		    	MPI_Irecv(&clientesDeCaja, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD, &requestAsincrono);
 		    	insertarCola(colaClientes, clientesDeCaja);
 		    }
 
-		    //MPI_Recv(&clientesDeCaja, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-		    
 		    // Limitar cajaDestino a un máximo del 50%
 		    if (cajaDestino < cajasAbiertas) {
 		    
@@ -132,30 +118,19 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
 		    else {
 		        cajaDestino = 1;
 		    }
-	     //}
-        }
-        
-        printf("Final de trabajo: \n");
-        //IMPRIME LA COLA 
+	    
+	      //IMPRIME LA COLA 
 		   
-         imprimirCola(colaClientes);
+        	 imprimirCola(colaClientes);
+        }
+      
     }
     else {//Procesos Esclavos (Cajas)
 	//MPI_Request requestAsincronoParaMaestro;
 	
         int trabajoEsclavo = 1;
         int clienteRecibido;
-        while (trabajoEsclavo) {
-        
-            //RECEPCION DEL TRABAJO
-	    MPI_Recv(&trabajoEsclavo, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	    printf("\n El trabajo es %d\n", trabajoEsclavo);
-	    
-	    //COMPROBACION DE FINALIZACION DE TRABAJO
-            if(!trabajoEsclavo){
-		    printf("Las Cajas han terminado de trabajar.\n");
-		    break;
-            }
+        while (1) {
             
 	    //RECEPCION DE CLIENTE
 	     
@@ -169,14 +144,13 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
             //ENVIO DE CLIENTE   
             MPI_Send(&cliente, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);    
             printf("El cliente %d enviado\n", cliente);
-            
-                 
+                      
         }
 
     }
     if (pid == 0) {
   		   
-       // free(colaClientes->clientes);
+        free(colaClientes->clientes);
     }
 
 }
