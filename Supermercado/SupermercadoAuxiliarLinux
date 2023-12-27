@@ -78,14 +78,19 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
 	
         printf("\nNumero de cajas abiertas: %d\n", cajasAbiertas);
 
-        //Bucle de envios de mensaje a los exclaves apra indicar si hay clientes o no en la cola
+        //Bucle de envios de mensaje a los exclaves apra indicar si hay clientes o no en la cola //REVISAR, ESTA MAL EL ENVIO DE TRABAJO 
         for (int i = 0; i < colaClientes->capacidadOriginal; i++) {
            if (i >= colaClientes->capacidadOriginal) {//sizeof(colaClientes->clientes) == 0) { //Si en la cola no hay clientes el trabajo pasa a ser 0 y se lo comunicamos a las cajas (np), para numClientes -> "i >= numClientes - (np - 1)"
                 trabajo = 0;
-                MPI_Send(&trabajo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);
+                for(int j = 0; j <np-1; j++){
+                	MPI_Send(&trabajo, 1, MPI_INT, j+1, 0, MPI_COMM_WORLD);
+                }
+                
             }
             else {//Si en la cola aun hay clientes se lo comunicamos a las cajas para que sigan trabajando
-                MPI_Send(&trabajo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);
+                for(int j = 0; j <np-1; j++){
+                	MPI_Send(&trabajo, 1, MPI_INT, j+1, 0, MPI_COMM_WORLD);
+                }
             }
             int clienteNuevo = salirDeCola(colaClientes);
             printf("\nEnviado cliente %d a la caja correspondiente.\n", clienteNuevo);
@@ -133,17 +138,25 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
         
     }
     else {//Procesos Esclavos (Cajas)
-	MPI_Request requestAsincronoParaMaestro;
+	//MPI_Request requestAsincronoParaMaestro;
 	
         int trabajoEsclavo = 1;
+        int clienteRecibido;
         while (trabajoEsclavo) {
-            int clienteRecibido;
-            printf("\n Esta es la caja: %d\n", pid);
+        
             //RECEPCION DEL TRABAJO
 	    MPI_Recv(&trabajoEsclavo, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	    printf("\n El trabajo es %d\n", trabajoEsclavo);
 	    
+	    //COMPROBACION DE FINALIZACION DE TRABAJO
+            if(!trabajoEsclavo){
+		    printf("Las Cajas han terminado de trabajar.\n");
+		    break;
+            }
+            
 	    //RECEPCION DE CLIENTE
+	     
+            printf("\n Esta es la caja: %d\n", pid);
             MPI_Recv(&clienteRecibido, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             printf("Soy la caja %d y me ha llegado el cliente %d\n", pid, clienteRecibido);
 
@@ -152,7 +165,10 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
 
             //ENVIO DE CLIENTE
 	    //MPI_Send(&requestAsincronoParaMaestro, 1, MPI_Request, 0, 1, MPI_COMM_WORLD);     
-            MPI_Send(&cliente, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);         
+            MPI_Send(&cliente, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);    
+            
+            
+                 
         }
 
     }
