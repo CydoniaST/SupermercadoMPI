@@ -31,14 +31,14 @@ void insertarCola(cola* cola, int clienteNuevo) {
     //Comprobacion de la cola
     
     
-    //if (cola->final < (cola->capacidadOriginal - 1)) {
-      //  cola->clientes[cola->final + 1] = clienteNuevo;
-        //cola->final++;
-    //}
-    if((cola->final+1) % cola->capacidadOriginal != cola->inicio){
-    	cola->clientes[(cola->final + 1) % cola->capacidadOriginal] = clienteNuevo;
-        cola->final = (cola->final + 1) % cola->capacidadOriginal;
+    if (cola->final < (cola->capacidadOriginal - 1)) {
+        cola->clientes[cola->final + 1] = clienteNuevo;
+        cola->final++;
     }
+    //if((cola->final+1) % cola->capacidadOriginal != cola->inicio){
+    	//cola->clientes[cola->final] = clienteNuevo;
+       // cola->final = (cola->final + 1) % cola->capacidadOriginal;
+    //}
     else {
         int llenos = (cola->final - cola->inicio) + 1;
 	int espacioLibre = cola->capacidadOriginal -llenos;
@@ -115,11 +115,13 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
 		    
 		    //tiene que ser asincrono
 		    
+		    MPI_Irecv(&clientesDeCaja, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD, &requestAsincrono);
+		    
 		    MPI_Test(&requestAsincrono, &flag, &status);
 		    if(flag){
 		     	printf("SACANDO AL CLIENTE %d POR DIOS\n", clienteNuevo);
 		        printf("\nEl cliente %d sale de la caja y vuelve a entrar en la cola.\n", clienteNuevo);
-		    	MPI_Irecv(&clientesDeCaja, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD, &requestAsincrono);
+		    	
 		    	insertarCola(colaClientes, clientesDeCaja);
 		    	printf("El cliente %d esta ahora en la cola\n", clientesDeCaja);
 		    	imprimirCola(colaClientes);
