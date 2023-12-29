@@ -61,7 +61,7 @@ void insertarCola(cola* cola, int clienteNuevo) {
 
 
 int clienteAtendido(int cliente, int pid) {
-    printf("El cliente %d va a ser atendido.\n", cliente);
+    
  
     unsigned int semilla = (unsigned int)(time(NULL)) + pid + cliente;
     
@@ -69,16 +69,16 @@ int clienteAtendido(int cliente, int pid) {
     int esperaNormal = (rand() % 6 ) +5;
     int esperaPrioritaria = (rand() % 11 ) +10;
     
-    //COMPROBACION DE CLIENTE PRIORITARIO O NO PRIORITARIO
     if(cliente % 2 == 0){
     
-    	sleep(esperaNormal);
-    	printf("El cliente %d ha sido atendido en %d.\n", cliente, esperaNormal);
-    }else{
-    
     	sleep(esperaPrioritaria);
-        printf("El cliente %d ha sido atendido en %d.\n", cliente, esperaPrioritaria);
+    	printf("\nESPERA PRIORITARIA DE: %d: \n", esperaPrioritaria);
+    }else{
+    	
+    	sleep(esperaNormal);
+    	printf("\ESPERA NORMAL DE: %d: \n", esperaNormal);
     }
+
 
     return cliente;
 }
@@ -89,7 +89,7 @@ void imprimirCola(cola* cola){
         for (int i = 0; i < cola->capacidadOriginal; i++) {
             printf(" %d", cola->clientes[i]);
         }
-        printf("]");
+        printf("]\n");
 }
 
 void gestionDeClientes(int pid, int np, cola* colaClientes) {
@@ -113,19 +113,19 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
             	 
                     int clienteNuevo = salirDeCola(colaClientes);
 			   
-	            //MPI_Send(&clienteNuevo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);
-		    MPI_Isend(&clienteNuevo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD,&requestAsincrono);
+	            MPI_Send(&clienteNuevo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);
+		    printf("El cliente %d va a ser atendido en la caja %d.\n", clienteNuevo,cajaDestino);
 		    
 		    //Recepción asíncrona
 		    MPI_Irecv(&clientesDeCaja, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD, &requestAsincrono);
 		    
-		    //BUCLE INFINITO QUE OBLIGA A ESPERAR A QUE LLEGUE UNA FLAG DE LA RECEPCION ASINCRONA PARA COMENZAR CON EL TRABAJO DE IINSERTAR CLIENTES EN LA COLA DE NUEVO
+		    //BUCLE INFINITO QUE OBLIGA A ESPERAR A QUE LLEGUE UNA FLAG DE LA RECEPCION ASINCRONA PARA COMENZAR CON EL TRABAJO DE INSERTAR CLIENTES EN LA COLA DE NUEVO
 		    while(!flag){
 		    	MPI_Test(&requestAsincrono, &flag, &status);
 		    }
 		    
-		    if(flag){
-		     	
+		    //if(flag){
+
 		        printf("\nEl cliente %d sale de la caja y vuelve a entrar en la cola.\n", clienteNuevo);
 		    	
 		    	insertarCola(colaClientes, clientesDeCaja);
@@ -133,7 +133,7 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
 		    	imprimirCola(colaClientes);
 		    	
 		    	flag = 0;
-		    }
+		    //}
 		    
 		    	    
 		    // Limitar cajaDestino a un máximo del 50%
@@ -160,17 +160,17 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
             
 	    //RECEPCION DE CLIENTE
 	     
-            printf("\n Esta es la caja: %d\n", pid);
+         
             MPI_Recv(&clienteRecibido, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            printf("Soy la caja %d y me ha llegado el cliente %d\n", pid, clienteRecibido);
+            printf("Soy la caja %d y me ha llegado el cliente %d----> ATENDIENDO\n ", pid, clienteRecibido);
 
-	    int cliente = clienteAtendido(clienteRecibido, getpid());
-            	  
+            int cliente = clienteAtendido(clienteRecibido, getpid());//DENTRO DE ESTA FUNCION VEREMOS A LOS CLIENTES PRIORITARIOS, T.ESPERA PRIORITARIO (10-20s), T.ESPERA NORMAL(5-10s)
+         
+	    
             //ENVIO DE CLIENTE   
             MPI_Send(&cliente, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);    
-	    printf("El cliente %d vuelve a la cola en 3 segundos\n", cliente);
-	    sleep(3);
-       
+            printf("El cliente %d vuelve a la cola\n", cliente);
+            sleep(3);
         }
 
     }
