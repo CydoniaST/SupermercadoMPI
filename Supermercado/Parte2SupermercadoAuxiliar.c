@@ -66,11 +66,19 @@ int clienteAtendido(int cliente, int pid) {
     unsigned int semilla = (unsigned int)(time(NULL)) + pid + cliente;
     
     srand(semilla);
-    int num = (rand() % 6 ) +5;
+    int esperaNormal = (rand() % 6 ) +5;
+    int esperaPrioritaria = (rand() % 11 ) +10;
     
-    sleep(num);
-
-    printf("El cliente %d ha sido atendido en %d.\n", cliente, num);
+    //COMPROBACION DE CLIENTE PRIORITARIO O NO PRIORITARIO
+    if(cliente % 2 == 0){
+    
+    	sleep(esperaNormal);
+    	printf("El cliente %d ha sido atendido en %d.\n", cliente, esperaNormal);
+    }else{
+    
+    	sleep(esperaPrioritaria);
+        printf("El cliente %d ha sido atendido en %d.\n", cliente, esperaPrioritaria);
+    }
 
     return cliente;
 }
@@ -156,24 +164,13 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
             MPI_Recv(&clienteRecibido, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             printf("Soy la caja %d y me ha llegado el cliente %d\n", pid, clienteRecibido);
 
-	    if(clienteRecibido%2==0){
-	    
-            	int cliente = clienteAtendido(clienteRecibido, getpid());
-            	  //ENVIO DE CLIENTE   
-		    MPI_Send(&cliente, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);    
-		    printf("El cliente Prioritario %d vuelve a la cola en 3 segundos\n", cliente);
-		    sleep(3);
-            }else{
-            
-            	int cliente = clienteAtendido(clienteRecibido, getpid());
-            	  //ENVIO DE CLIENTE   
-		    MPI_Send(&cliente, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);    
-		    printf("El cliente %d vuelve a la cola en 3 segundos\n", cliente);
-		    sleep(3);
-            }
-         
-	    
-          
+	    int cliente = clienteAtendido(clienteRecibido, getpid());
+            	  
+            //ENVIO DE CLIENTE   
+            MPI_Send(&cliente, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);    
+	    printf("El cliente %d vuelve a la cola en 3 segundos\n", cliente);
+	    sleep(3);
+       
         }
 
     }
