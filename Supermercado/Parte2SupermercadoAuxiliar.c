@@ -68,9 +68,9 @@ int clienteAtendido(int cliente, int pid) {
     srand(semilla);
     int num = (rand() % 6 ) +5;
     
-    if(cliente == 1){
+    if(cliente == 2){
     
-    	sleep(100);
+    	sleep(30);
     }else{
     
     	sleep(num);
@@ -100,13 +100,15 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
         int recibeTrabajo = 0;
         int cajasAbiertas = round(np / 2);
        
-	
+
 	
         printf("\nNumero de cajas abiertas: %d\n", cajasAbiertas);
 
         //Bucle infinito de clientes a sus respectivas cajas y de las cajas al maestro que se encarga de meterlos de nuevo en la cola
  	while(1){    
-            	    MPI_Request requestAsincrono;
+ 	      
+ 	            
+            	    MPI_Request requestAsincrono = MPI_REQUEST_NULL;
 		    MPI_Status status;
 		    
                     int clienteNuevo = salirDeCola(colaClientes);
@@ -118,14 +120,15 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
 		    
 		   
 		    //Recepción asíncrona
-		    MPI_Irecv(&clientesDeCaja, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD, &requestAsincrono);
+		    MPI_Irecv(&clientesDeCaja, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &requestAsincrono);
 		    
-		    //BUCLE INFINITO QUE OBLIGA A ESPERAR A QUE LLEGUE UNA FLAG DE LA RECEPCION ASINCRONA PARA COMENZAR CON EL TRABAJO DE IINSERTAR CLIENTES EN LA COLA DE NUEVO
+		    //BUCLE INFINITO QUE OBLIGA A ESPERAR A QUE LLEGUE UNA FLAG DE LA RECEPCION ASINCRONA PARA COMENZAR CON EL TRABAJO DE INSERTAR CLIENTES EN LA COLA DE NUEVO
 		   
-		    //while(!flag){
 		    
-		    	MPI_Test(&requestAsincrono, &flag, &status);
-		    //}
+		    //MPI_Wait(&requestAsincrono, &status);
+		 
+		    MPI_Test(&requestAsincrono, &flag, &status);
+		    
 		    
 		    
 		    
