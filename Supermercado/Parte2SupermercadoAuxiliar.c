@@ -100,7 +100,7 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
         int recibeTrabajo = 0;
         int cajasAbiertas = round(np / 2);
        
-
+        int flag = 0;
 	
         printf("\nNumero de cajas abiertas: %d\n", cajasAbiertas);
 
@@ -109,6 +109,7 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
  	      
  	            
             	    MPI_Request requestAsincrono = MPI_REQUEST_NULL;
+            	    MPI_Request requestAsincrono2;
 		    MPI_Status status;
 		    
                     int clienteNuevo = salirDeCola(colaClientes);
@@ -116,22 +117,20 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
 	            //MPI_Send(&clienteNuevo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);
 		    MPI_Isend(&clienteNuevo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD, &requestAsincrono);
 		    
-		     int flag = 0;
-		    
 		   
 		    //Recepción asíncrona
-		    MPI_Irecv(&clientesDeCaja, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &requestAsincrono);
+		    MPI_Irecv(&clientesDeCaja, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &requestAsincrono2);
 		    
 		    //BUCLE INFINITO QUE OBLIGA A ESPERAR A QUE LLEGUE UNA FLAG DE LA RECEPCION ASINCRONA PARA COMENZAR CON EL TRABAJO DE INSERTAR CLIENTES EN LA COLA DE NUEVO
 		   
+		
+		  
+			   // MPI_Wait(&requestAsincrono2, &status);
+			    MPI_Test(&requestAsincrono2, &flag, &status);
 		    
-		    //MPI_Wait(&requestAsincrono, &status);
-		 
-		    MPI_Test(&requestAsincrono, &flag, &status);
+		    //MPI_Iprobe(MPI_ANY_SOURCE,1, MPI_COMM_WORLD, &flag, MPI_STATUS_IGNORE);
 		    
-		    
-		    
-		    
+		        
 		    //printf("\nLA FLAG ES ESTA:%d \n", flag);
 		    if(flag){
 		     	
@@ -141,9 +140,9 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
 		    	printf("El cliente %d esta ahora en la cola\n", clientesDeCaja);
 		    	imprimirCola(colaClientes);
 		    	
-		    	flag = 0;
+		    	MPI_Request requestAsincrono2 = MPI_REQUEST_NULL;
+		    	//flag = 0;
 		     }
-		    
 		    	    
 		    // Limitar cajaDestino a un máximo del 50%
 		    if (cajaDestino < cajasAbiertas) {
@@ -177,7 +176,7 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
 	    
             //ENVIO DE CLIENTE   
             MPI_Send(&cliente, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);    
-            printf("El cliente %d vuelve a la cola en 3 segundos\n", cliente);
+            printf("El cliente %d sale de la caja\n", cliente);
             sleep(3);
         }
 
