@@ -151,8 +151,7 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
         while (1) {
             
 	    //RECEPCION DE CLIENTE
-	     
-            printf("\n Esta es la caja: %d\n", pid);
+
             MPI_Recv(&clienteRecibido, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             printf("Soy la caja %d y me ha llegado el cliente %d\n", pid, clienteRecibido);
 
@@ -161,7 +160,7 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
 	    
             //ENVIO DE CLIENTE   
             MPI_Send(&cliente, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);    
-            printf("El cliente %d vuelve a la cola\n", cliente);
+            printf("El cliente %d vuelve a la cola en 3 segundos\n", cliente);
             sleep(3);
         }
 
