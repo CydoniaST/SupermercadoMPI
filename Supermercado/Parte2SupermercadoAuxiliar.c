@@ -13,6 +13,9 @@ typedef struct{
     int inicio;
     int final;
     int capacidadOriginal;
+    int* colaPrioridades;
+    int inicioP;
+    int finalP;
 }cola;
 
 //VARIABLES AUXILIARES
@@ -24,6 +27,15 @@ int salirDeCola(cola* cola) {
   
 
     cola->inicio++;
+    return result;
+}
+
+int salirPrioridad(cola* cola) {
+
+    int result = cola->colaPrioridades[cola->inicio-1];
+  
+
+    cola->inicioP++;
     return result;
 }
 
@@ -59,23 +71,62 @@ void insertarCola(cola* cola, int clienteNuevo) {
     } 
 }
 
+void insertarPrioridades(cola* cola, int prioridad) {
+    //Comprobacion de la cola
+    
+    
+    if (cola->finalP < (cola->capacidadOriginal - 1)) {
+        cola->colaPrioridades[cola->finalP + 1] = prioridad;
+        cola->finalP++;
+    }
+    else {
+        int llenos = (cola->finalP - cola->inicioP) + 1;
+	int espacioLibre = cola->capacidadOriginal -llenos;
 
-int clienteAtendido(int cliente, int pid) {
+	if(espacioLibre > 0){
+		
+		for (int i = 0; i < llenos; i++) {
+		    cola->colaPrioridades[i] = cola->colaPrioridades[i + cola->inicioP];
+		}
+		
+		cola->inicioP = 0;
+
+		cola->finalP = llenos-1;
+		
+		cola->colaPrioridades[cola->finalP+1] = prioridad;
+		cola->finalP++;
+        }else{
+        	
+        	printf("\nLa cola esta llena.\n");
+        }
+     
+    } 
+}
+
+
+int clienteAtendido(int cliente, int pid, int prioridad) {
     printf("El cliente %d va a ser atendido.\n", cliente);
  
     unsigned int semilla = (unsigned int)(time(NULL)) + pid + cliente;
     
     srand(semilla);
-    int num = (rand() % 6 ) +5;
     
-    if(cliente == 2){
-    
-    	sleep(30);
+    if(prioridad ==1){
+    	int esperaPrioridad = (rand() % 11 ) +10; 
+    	sleep(esperaPrioridad);
+    	    
+
+   	printf("El cliente %d tiene prioridad y ha sido atendido en %d.\n", cliente, esperaPrioridad);
     }else{
-    
-    	sleep(num);
+    	   
+    	int esperaNormal = (rand() % 6 ) +5;
+    	sleep(esperaNormal);
+    	    
+
+    	printf("El cliente %d no tiene prioridad y ha sido atendido en %d.\n", cliente, esperaNormal);
     }
-    printf("El cliente %d ha sido atendido en %d.\n", cliente, num);
+    
+
 
     return cliente;
 }
@@ -89,60 +140,65 @@ void imprimirCola(cola* cola){
         printf("]");
 }
 
+void imprimirColaP(cola* cola){
+     printf("\nLos clientes de la cola son los siguientes: ");
+        printf("[");
+        for (int i = 0; i < cola->capacidadOriginal; i++) {
+            printf(" %d", cola->colaPrioridades[i]);
+        }
+        printf("]");
+}
+
 void gestionDeClientes(int pid, int np, cola* colaClientes) {
 
     if (pid == 0) {//Proceso Maestro (Clientes)
         int cajaDestino = 1;
         int clientesDeCaja;
-        int indiceCaja;
-        int trabajo = 0;
-        int* copiaClientes = NULL;
-        int recibeTrabajo = 0;
+        int prioridadCliente;
+ 
+
         int cajasAbiertas = round(np / 2);
-       
-        int flag = 0;
+        MPI_Request requestAsincrono;
+        MPI_Request requestAsincronoP;
+	MPI_Status status;
+	int flag = 0;
+	
+	//int contadorCajas = 0;
 	
         printf("\nNumero de cajas abiertas: %d\n", cajasAbiertas);
 
         //Bucle infinito de clientes a sus respectivas cajas y de las cajas al maestro que se encarga de meterlos de nuevo en la cola
  	while(1){    
- 	      
- 	            
-            	    MPI_Request requestAsincrono = MPI_REQUEST_NULL;
-            	    MPI_Request requestAsincrono2;
-		    MPI_Status status;
-		    
-                    int clienteNuevo = salirDeCola(colaClientes);
-			   
-	            //MPI_Send(&clienteNuevo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);
-		    MPI_Isend(&clienteNuevo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD, &requestAsincrono);
-		    
-		   
+            	 
+            	
+		     	 int clienteNuevo = salirDeCola(colaClientes);
+	                 int prioridad = salirPrioridad(colaClientes);			   
+			 MPI_Send(&clienteNuevo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);	
+		 	 MPI_Send(&prioridad, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD);	
+		 	
 		    //Recepción asíncrona
-		    MPI_Irecv(&clientesDeCaja, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &requestAsincrono2);
+		    MPI_Irecv(&clientesDeCaja, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD, &requestAsincrono);
+		    MPI_Irecv(&prioridadCliente, 1, MPI_INT, cajaDestino, 2, MPI_COMM_WORLD, &requestAsincronoP);
 		    
-		    //BUCLE INFINITO QUE OBLIGA A ESPERAR A QUE LLEGUE UNA FLAG DE LA RECEPCION ASINCRONA PARA COMENZAR CON EL TRABAJO DE INSERTAR CLIENTES EN LA COLA DE NUEVO
-		   
-		
-		  
-			   // MPI_Wait(&requestAsincrono2, &status);
-			    MPI_Test(&requestAsincrono2, &flag, &status);
+		    //BUCLE INFINITO QUE OBLIGA A ESPERAR A QUE LLEGUE UNA FLAG DE LA RECEPCION ASINCRONA PARA COMENZAR CON EL TRABAJO DE IINSERTAR CLIENTES EN LA COLA DE NUEVO
+		    while(!flag){
+		    	MPI_Test(&requestAsincrono, &flag, &status);
+		    	MPI_Test(&requestAsincronoP, &flag, &status);
+		    }
 		    
-		    //MPI_Iprobe(MPI_ANY_SOURCE,1, MPI_COMM_WORLD, &flag, MPI_STATUS_IGNORE);
-		    
-		        
-		    //printf("\nLA FLAG ES ESTA:%d \n", flag);
 		    if(flag){
-		     	
-		        printf("\nEl cliente %d sale de la caja y vuelve a entrar en la cola.\n", clienteNuevo);
+		     	//printf("SACANDO AL CLIENTE %d POR DIOS\n", clienteNuevo);
+		        //printf("\nEl cliente %d sale de la caja y vuelve a entrar en la cola.\n", clienteNuevo);
 		    	
 		    	insertarCola(colaClientes, clientesDeCaja);
+		    	insertarPrioridades(colaClientes, prioridadCliente);
 		    	printf("El cliente %d esta ahora en la cola\n", clientesDeCaja);
 		    	imprimirCola(colaClientes);
+		    	imprimirColaP(colaClientes);
 		    	
-		    	MPI_Request requestAsincrono2 = MPI_REQUEST_NULL;
-		    	//flag = 0;
-		     }
+		    	flag = 0;
+		    }
+		    
 		    	    
 		    // Limitar cajaDestino a un máximo del 50%
 		    if (cajaDestino < cajasAbiertas) {
@@ -162,21 +218,35 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
 	
         int trabajoEsclavo = 1;
         int clienteRecibido;
-        
-        
+        int prioridadRecibida;
+   
         while (1) {
             
 	    //RECEPCION DE CLIENTE
-
+	     
+            printf("\n Esta es la caja: %d\n", pid);
             MPI_Recv(&clienteRecibido, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            printf("Soy la caja %d y me ha llegado el cliente %d\n", pid, clienteRecibido);
+            MPI_Recv(&prioridadRecibida, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            printf("Soy la caja %d y me ha llegado el cliente %d con prioridad %d \n", pid, clienteRecibido, prioridadRecibida);
 
-            int cliente = clienteAtendido(clienteRecibido, getpid());
+	    
+            int cliente = clienteAtendido(clienteRecibido, getpid(), prioridadRecibida);
          
 	    
             //ENVIO DE CLIENTE   
-            MPI_Send(&cliente, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);    
-            printf("El cliente %d sale de la caja\n", cliente);
+            MPI_Send(&cliente, 1, MPI_INT, 0, 1, MPI_COMM_WORLD); 
+
+            
+            //Cambio de prioridad
+            if(prioridadRecibida == 1){
+            	prioridadRecibida = 0;
+            }else{
+            	prioridadRecibida = 0;
+            }
+            
+            MPI_Send(&prioridadRecibida, 1, MPI_INT, 0, 2, MPI_COMM_WORLD);   
+             
+            printf("El cliente %d vuelve a la cola con prioridad %d\n", cliente, prioridadRecibida);
             sleep(3);
         }
 
@@ -209,6 +279,9 @@ int main(int argc, char* argv[])
         colaSupermercado.clientes = (int*)malloc(colaSupermercado.capacidadOriginal * sizeof(int));
         colaSupermercado.inicio = 0;
         colaSupermercado.final = colaSupermercado.capacidadOriginal - 1;
+        colaSupermercado.colaPrioridades = (int*)malloc(colaSupermercado.capacidadOriginal * sizeof(int));
+         colaSupermercado.inicioP = 0;
+        colaSupermercado.finalP = colaSupermercado.capacidadOriginal - 1;
 
         printf("El size de la cola es: %d. ", colaSupermercado.capacidadOriginal);
 
@@ -231,7 +304,20 @@ int main(int argc, char* argv[])
         printf("]");
         //Creacion de cola finalizada
 
+	//COLA DE PRIORIDADES
+	for (int i = 0; i < colaSupermercado.capacidadOriginal; i++) {
 
+            colaSupermercado.colaPrioridades[i] = rand()%2;
+           
+        }
+        
+         printf("\nLas prioridades son: ");
+        printf("[");
+        for (int i = 0; i < colaSupermercado.capacidadOriginal; i++) {
+            printf(" %d", colaSupermercado.colaPrioridades[i]);
+        }
+        printf("]");
+        
         printf("\nIniciando trabajo del supermercado.");
 
     }
