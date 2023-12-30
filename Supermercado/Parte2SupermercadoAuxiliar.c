@@ -192,7 +192,7 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
 		    	
 		    	insertarCola(colaClientes, clientesDeCaja);
 		    	insertarPrioridades(colaClientes, prioridadCliente);
-		    	printf("El cliente %d esta ahora en la cola\n", clientesDeCaja);
+		    	printf("\nEl cliente %d esta ahora en la cola\n", clientesDeCaja);
 		    	imprimirCola(colaClientes);
 		    	imprimirColaP(colaClientes);
 		    	
@@ -224,7 +224,6 @@ void gestionDeClientes(int pid, int np, cola* colaClientes) {
             
 	    //RECEPCION DE CLIENTE
 	     
-            printf("\n Esta es la caja: %d\n", pid);
             MPI_Recv(&clienteRecibido, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(&prioridadRecibida, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             printf("Soy la caja %d y me ha llegado el cliente %d con prioridad %d \n", pid, clienteRecibido, prioridadRecibida);
