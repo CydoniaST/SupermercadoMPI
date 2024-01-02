@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
-
+#include <math.h>
 
 typedef struct{
     int* clientes;
@@ -130,48 +130,75 @@ void imprimirPrioridades(cola* cola) {
 void gestionDeClientes(int pid, int np, cola* colaClientes) {
 	int clientesDeCaja;
         int prioridadCliente;
+        int cliente;
+        
+        int prioridadRecibida;
     	int cajaDestino = 1;
     	int flag = 0;
     	MPI_Status status;
     	
+    //CONTROL DE CAJAS ABIERTAS
+	int cajasAbiertas = round(np / 2);
+	if(colaClientes->capacidadOriginal > cajasAbiertas * 2){
+		cajasAbiertas ++;
+	}
+	
     while (1) {
-        if (pid == 0) {
+        
         MPI_Request requestAsincrono;
-            // El proceso 0 (maestro) ingresa nuevos clientes a la cola
-            if (colaClientes->final - colaClientes->inicio + 1 < colaClientes->capacidadOriginal) {
+
+	if(pid = 0){
+	
                 int clienteNuevo = salirDeCola(colaClientes); // Simula la llegada de un cliente
                 int prioridad = salirPrioridad(colaClientes); // Genera aleatoriamente la prioridad del cliente
                 MPI_Send(&clienteNuevo, 1, MPI_INT, cajaDestino, 0, MPI_COMM_WORLD);
 		MPI_Send(&prioridad, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD);	
-				
-	        MPI_Irecv(&clientesDeCaja, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD, &requestAsincrono);
+		
+		printf("Soy la caja %d y me ha llegado el cliente %d con prioridad %d \n", pid, clienteNuevo, prioridad);		
+		int cliente = clienteAtendido(clienteNuevo, getpid(), prioridad);
+		
+	        MPI_Irecv(&cliente, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD, &requestAsincrono);
 		MPI_Irecv(&prioridadCliente, 1, MPI_INT, cajaDestino, 2, MPI_COMM_WORLD, &requestAsincrono);
-                printf("El cliente %d entra a la cola con prioridad %d.\n", clienteNuevo, prioridad);
-                imprimirCola(colaClientes);
-                imprimirPrioridades(colaClientes);
-            }
-        }
+                printf("El cliente %d entra a la cola con prioridad %d.\n", cliente, prioridadCliente);
+                 insertarCola(colaClientes,clienteNuevo, prioridadCliente);
+	         imprimirCola(colaClientes);
+		 imprimirPrioridades(colaClientes);
+                
+         }
 
-        // Sincronización para que todos los procesos esperen a que el proceso 0 termine de agregar clientes
-        MPI_Barrier(MPI_COMM_WORLD);
-
-        // Todos los procesos, incluido el proceso 0, atienden a los clientes de la cola si hay alguno
-        if (colaClientes->final - colaClientes->inicio + 1 >= 0) {
-        MPI_Request requestAsincrono ;
-       	    MPI_Test(&requestAsincrono, &flag, &status);
-            int clienteDeCola = salirDeCola(colaClientes);
-            int prioridadCliente = salirPrioridad(colaClientes);
-            int cliente = clienteAtendido(clienteDeCola, getpid(), prioridadCliente);
-            colaClientes->inicio++;
-            insertarCola(colaClientes,cliente, prioridadCliente);
-        }
+ 
+		 MPI_Recv(&cliente, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		 MPI_Recv(&prioridadCliente, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	 	
+	 	 int cliente = clienteAtendido(cliente, getpid(), prioridadCliente);
+	 	
+	 	int clienteNuevo = salirDeCola(colaClientes); // Simula la llegada de un cliente
+                int prioridad = salirPrioridad(colaClientes); 
+	 	 MPI_Isend(&clienteNuevo, 1, MPI_INT, cajaDestino, 1, MPI_COMM_WORLD, &requestAsincrono);
+		 MPI_Isend(&prioridad, 1, MPI_INT, cajaDestino, 2, MPI_COMM_WORLD, &requestAsincrono);
+		 insertarCola(colaClientes,cliente, prioridadCliente);
+	         imprimirCola(colaClientes);
+		 imprimirPrioridades(colaClientes);
 
         // Sincronización para asegurar que todos los procesos hayan atendido a sus clientes antes de continuar
         MPI_Barrier(MPI_COMM_WORLD);
+        
+        if (cajaDestino < cajasAbiertas) {
+		    
+		cajaDestino = (cajaDestino % np) + 1;
+	        if (cajaDestino == np) {//Cuando el destino sea igual al numero de procesos debera volver al nodo 1 y reiniciar los envios.
+	            cajaDestino = 1;
+	        }
+	}
+	else {
+	        cajaDestino = 1;
+	}
 
+ 	
         // Espera para simular la llegada de más clientes
         sleep(2);
     }
+
 
     free(colaClientes->clientes);
     free(colaClientes->colaPrioridades);
@@ -187,15 +214,15 @@ int main(int argc, char* argv[]) {
 
      int j = 0;
     cola colaSupermercado;
-    
-    if(pid==0){
-    	 colaSupermercado.capacidadOriginal = 6;
+     colaSupermercado.capacidadOriginal = 6;
         colaSupermercado.clientes = (int*)malloc(colaSupermercado.capacidadOriginal * sizeof(int));
         colaSupermercado.inicio = 0;
         colaSupermercado.final = colaSupermercado.capacidadOriginal - 1;
         colaSupermercado.colaPrioridades = (int*)malloc(colaSupermercado.capacidadOriginal * sizeof(int));
          colaSupermercado.inicioP = 0;
         colaSupermercado.finalP = colaSupermercado.capacidadOriginal - 1;
+    if(pid==0){
+    	
 
         printf("El size de la cola es: %d. ", colaSupermercado.capacidadOriginal);
 
